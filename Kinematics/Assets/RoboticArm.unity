@@ -1013,7 +1013,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   BaseJoint: {fileID: 1138096786}
-  Joints:
+  joints:
   - {fileID: 1138096787}
   - {fileID: 776976301}
   - {fileID: 1536539312}

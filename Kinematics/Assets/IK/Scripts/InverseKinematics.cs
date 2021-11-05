@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace ENTICourse.IK
 {
-
     // A typical error function to minimise
     public delegate float ErrorFunction(Vector3 target, float[] solution);
 
@@ -36,10 +35,10 @@ namespace ENTICourse.IK
     {
         [Header("Joints")]
         public Transform BaseJoint;
-       
+
 
         [ReadOnly]
-        public RobotJoint[] Joints = null;
+        public RobotJoint[] joints = null;
         // The current angles
         [ReadOnly]
         public float[] Solution = null;
@@ -63,43 +62,35 @@ namespace ENTICourse.IK
         [Range(0, 10f)]
         public float SlowdownThreshold = 0.25f; // If closer than this, it linearly slows down
 
-
         public ErrorFunction ErrorFunction;
-
-
 
         [Header("Debug")]
         public bool DebugDraw = true;
 
-
-
         // Use this for initialization
         void Start()
         {
-            if (Joints == null)
+            if (joints == null)
                 GetJoints();
-        
-           ErrorFunction = DistanceFromTarget;
+
+            ErrorFunction = DistanceFromTarget;
         }
 
         [ExposeInEditor(RuntimeOnly = false)]
         public void GetJoints()
         {
-            Joints = BaseJoint.GetComponentsInChildren<RobotJoint>();
-            Solution = new float[Joints.Length];
+            joints = BaseJoint.GetComponentsInChildren<RobotJoint>();
+            Solution = new float[joints.Length];
         }
-
-
 
         // Update is called once per frame
         void Update()
         {
             // Do we have to approach the target?
-           //TODO
+            //TODO
 
-           
             if (ErrorFunction(target, Solution) > StopThreshold)
-                ApproachTarget(target);
+                ApproachTarget(Destination.position);
 
             if (DebugDraw)
             {
@@ -111,25 +102,30 @@ namespace ENTICourse.IK
         public void ApproachTarget(Vector3 target)
         {
             //TODO
-            while(ErrorFunction(target,Solution)> SlowdownThreshold)
+            //while (ErrorFunction(target, Solution) > SlowdownThreshold)
             {
-                for (int i = 0; i < Joints.Length;i++)
+                for (int i = 0; i < joints.Length; i++)
                 {
-                 // Joints[i] = Joints[i]. - LearningRate * CalculateGradient(target, Solution, i, DeltaGradient);
+                    float gradient = CalculateGradient(target, Solution, i, DeltaGradient);
+                    Solution[i] -= LearningRate * gradient;
+
+                    joints[i].MoveArm(Solution[i]);
                 }
             }
-           
         }
 
-        
+
         public float CalculateGradient(Vector3 target, float[] Solution, int i, float delta)
         {
             //TODO 
-            float gradient = 0;
+            float angle = Solution[i];
+            float f_x = DistanceFromTarget(target, Solution);
+            Solution[i] += delta;
+            float f_xFinal = DistanceFromTarget(target, Solution);
 
-          //  gradient = ()/
+            Solution[i] = angle;
 
-            return gradient;
+            return (f_xFinal - f_x) / delta;
         }
 
         // Returns the distance from the target, given a solution
@@ -139,32 +135,22 @@ namespace ENTICourse.IK
             return Vector3.Distance(point, target);
         }
 
-
         /* Simulates the forward kinematics,
          * given a solution. */
 
-    
         public PositionRotation ForwardKinematics(float[] Solution)
         {
-            Vector3 prevPoint = Joints[0].transform.position;
-            
+            Vector3 prevPoint = joints[0].transform.position;
+
             // Takes object initial rotation into account
-            Quaternion rotation ;
+            Quaternion rotation = transform.rotation;
 
             //TODO
-            rotation = transform.rotation;
-            for (int i = 1; i < Solution.Length;i++)
+            for (int i = 1; i < joints.Length; i++)
             {
-                rotation = transform.rotation;
-                for (int k = 0; k < i; k++)
-                {
-                    rotation = rotation * Joints[k].transform.localRotation;
-                }
-               // prevPoint = prevPoint + rotate(target-Joints[i].transform.position,prevPoint,rotation);
-                // Implement rotate from aa1
-
+                rotation *= Quaternion.AngleAxis(Solution[i - 1], joints[i - 1].Axis);
+                prevPoint += rotation * joints[i].StartOffset;
             }
-
 
             // The end of the effector
             return new PositionRotation(prevPoint, rotation);
